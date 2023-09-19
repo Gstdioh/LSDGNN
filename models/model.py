@@ -55,9 +55,6 @@ class LSDGNLayer(nn.Module):
         # gcn_reset
         self.gcn_reset = GCNReset(self.gcn_input_channels, self.hidden_dim, **model_args)
 
-        # global_t_fusion
-        # self.global_t_fusion = GlobalTFusion(self.hidden_dim, **model_args)
-
         # normalization, (B, D, N, L) 计算(D, N, L)的归一化参数，然后进行归一化
         self.norm = nn.LayerNorm([self.hidden_dim, self.num_nodes * self.residual_len])
 
@@ -104,14 +101,6 @@ class LSDGNLayer(nn.Module):
         x = self.gcn_reset(x, adjs)
         # x (batch_size, hidden_dim, num_nodes, input_seq_len)
         x = x.transpose(1, 3)
-
-        # global_t_fusion
-        # x (B, L, N, D) -> (B, N, L, D)
-        # x = x.transpose(1, 2)
-        # x (B, N, L, D)
-        # x = self.global_t_fusion(x)
-        # x (B, N, L, D) -> (B, D, N, L)
-        # x = x.permute(0, 3, 1, 2)
 
         # 残差连接 + 归一化, post norm
         x = x + residual[:, :, :, -x.size(3):]
