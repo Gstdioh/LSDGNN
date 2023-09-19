@@ -1,0 +1,23 @@
+# prepare
+python prepare_data.py --config_filename configs/METR-LA/prepare.yaml
+python prepare_data.py --config_filename configs/PEMS03/prepare.yaml
+python prepare_data.py --config_filename configs/PEMS04/prepare.yaml
+python prepare_data.py --config_filename configs/PEMS07/prepare.yaml
+python prepare_data.py --config_filename configs/PEMS08/prepare.yaml
+
+# train
+python main.py --config_filename configs/METR-LA/train.yaml
+python main.py --config_filename configs/PEMS03/train.yaml
+python main.py --config_filename configs/PEMS04/train.yaml
+python main.py --config_filename configs/PEMS07/train.yaml
+python main.py --config_filename configs/PEMS08/train.yaml
+
+# test
+python main.py --config_filename configs/METR-LA/test.yaml
+python main.py --config_filename configs/PEMS03/test.yaml
+python main.py --config_filename configs/PEMS04/test.yaml
+python main.py --config_filename configs/PEMS07/test.yaml
+python main.py --config_filename configs/PEMS08/test.yaml
+
+# 打包当前训练的模型
+zip -r LSDGNN.zip configs models utils *.txt *.py

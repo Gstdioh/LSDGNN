@@ -1,0 +1,10 @@
+# PyCharm
+.idea/
+
+datasets/
+runs/
+saved_model/
+
+exp/
+
+test.py
