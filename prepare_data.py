@@ -128,24 +128,24 @@ def prepare_traffic_data(data_file, data_file_type='npz', add_time_in_day=True, 
     times = data_seq.shape[0]
 
     split_sum = sum(split_list)
-    # # 原
-    # # 先按比例划分，再在各个集里构建样本（这样不太对）
-    # val_start = int(times * (split_list[0] * 1. / split_sum))
-    # test_start = int(times * ((split_list[0] + split_list[1]) * 1. / split_sum))
-    # # 划分数据集
-    # train = data_seq[:val_start, :, :]
-    # val = data_seq[val_start:test_start, :, :]
-    # test = data_seq[test_start:, :, :]
-
-    # 改，2023/9/26
-    # 相当于先构建样本，然后再按比例划分样本
-    # 样本数是 times - (12 + 12 - 1) = times - 23
-    val_start = int((times - 23) * (split_list[0] * 1. / split_sum))
-    test_start = int((times - 23) * ((split_list[0] + split_list[1]) * 1. / split_sum))
+    # 原，在pytorch2.0上的效果差点
+    # 先按比例划分，再在各个集里构建样本（这样不太对）
+    val_start = int(times * (split_list[0] * 1. / split_sum))
+    test_start = int(times * ((split_list[0] + split_list[1]) * 1. / split_sum))
     # 划分数据集
-    train = data_seq[:val_start + 23, :, :]
-    val = data_seq[val_start:test_start + 23, :, :]
+    train = data_seq[:val_start, :, :]
+    val = data_seq[val_start:test_start, :, :]
     test = data_seq[test_start:, :, :]
+
+    # # 改，2023/9/26，效果比原差点
+    # # 相当于先构建样本，然后再按比例划分样本
+    # # 样本数是 times - (12 + 12 - 1) = times - 23
+    # val_start = int((times - 23) * (split_list[0] * 1. / split_sum))
+    # test_start = int((times - 23) * ((split_list[0] + split_list[1]) * 1. / split_sum))
+    # # 划分数据集
+    # train = data_seq[:val_start + 23, :, :]
+    # val = data_seq[val_start:test_start + 23, :, :]
+    # test = data_seq[test_start:, :, :]
 
     # 保存划分的数据集
     filename = ""
