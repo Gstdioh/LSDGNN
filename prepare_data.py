@@ -20,9 +20,9 @@ def prepare_adj_data(sensor_ids_file, distance_file, output_pkl_file=None, norma
         # 类型是字符串，则从文件中读取编号，记得将编号转换为数字
         with open(sensor_ids_file) as f:
             # METR-LA用这个
-            # sensor_ids = [int(item) for item in f.read().strip().split(',')]
+            sensor_ids = [int(item) for item in f.read().strip().split(',')]
             # PEMS03用这个
-            sensor_ids = [int(item) for item in f.read().strip().split('\n')]
+            # sensor_ids = [int(item) for item in f.read().strip().split('\n')]
 
     _, sensor_id_to_ind, adj_mx = utils.data.get_adjacency_matrix(distance_file, sensor_ids, graph_type=graph_type)
 
@@ -128,12 +128,23 @@ def prepare_traffic_data(data_file, data_file_type='npz', add_time_in_day=True, 
     times = data_seq.shape[0]
 
     split_sum = sum(split_list)
-    val_start = int(times * (split_list[0] * 1. / split_sum))
-    test_start = int(times * ((split_list[0] + split_list[1]) * 1. / split_sum))
+    # # 原
+    # # 先按比例划分，再在各个集里构建样本（这样不太对）
+    # val_start = int(times * (split_list[0] * 1. / split_sum))
+    # test_start = int(times * ((split_list[0] + split_list[1]) * 1. / split_sum))
+    # # 划分数据集
+    # train = data_seq[:val_start, :, :]
+    # val = data_seq[val_start:test_start, :, :]
+    # test = data_seq[test_start:, :, :]
 
+    # 改，2023/9/26
+    # 相当于先构建样本，然后再按比例划分样本
+    # 样本数是 times - (12 + 12 - 1) = times - 23
+    val_start = int((times - 23) * (split_list[0] * 1. / split_sum))
+    test_start = int((times - 23) * ((split_list[0] + split_list[1]) * 1. / split_sum))
     # 划分数据集
-    train = data_seq[:val_start, :, :]
-    val = data_seq[val_start:test_start, :, :]
+    train = data_seq[:val_start + 23, :, :]
+    val = data_seq[val_start:test_start + 23, :, :]
     test = data_seq[test_start:, :, :]
 
     # 保存划分的数据集
