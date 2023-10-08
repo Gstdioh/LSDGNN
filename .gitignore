@@ -1,10 +1,14 @@
 # PyCharm
 .idea/
 
+# My
 datasets/
 runs/
 saved_model/
 
 exp/
 
+adj.csv
+LSDGNN.zip
 test.py
+test_results.npz
