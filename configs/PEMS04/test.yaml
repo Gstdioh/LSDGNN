@@ -32,7 +32,7 @@ model_args:
   time_day_dim:   16
   time_week_dim:  7
 
-  num_nodes:      207
+  num_nodes:      307
   num_layers:     3
 
   # ModelLayer
@@ -58,13 +58,15 @@ model_args:
 train:
   device: cuda  # ["cuda", "cpu"]
 
+  # 暖启动
+  warm_epochs: 0  # 前warm_epochs个epoch进计算12个长度的损失值
   # 课程学习
-  step_size: 2500
   cl: false
+  cl_epochs: 3  # warm后，进行课程学习，cl_len = 1，每cl_epochs个eopch，cl_len += 1，直到12
 
   # 模型载入和保存参数
-  has_saved_state: false  # 是否有权重文件
-  model_state_pth: null  # 模型权重文件，包含模型参数和训练状态 ['model_state_dict', 'epoch', 'optimizer_state_dict']
+  has_saved_state: true  # 是否有权重文件
+  model_state_pth: D:/1_program/0_Traffic_Predition/My/LSDGNN/saved_model/best_epoch46.pth  # 模型权重文件，包含模型参数和训练状态 ['model_state_dict', 'epoch', 'optimizer_state_dict']
   save_model: true  # 是否保存模型参数和训练状态
 
   # 学习率相关参数

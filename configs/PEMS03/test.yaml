@@ -32,7 +32,7 @@ model_args:
   time_day_dim:   16
   time_week_dim:  7
 
-  num_nodes:      207
+  num_nodes:      358
   num_layers:     3
 
   # ModelLayer
