@@ -20,7 +20,7 @@ class Supervisor:
         self.mode = kwargs.get('mode', 'train')  # 运行的模式，训练或者测试，['train', 'test']
 
         device = self._train_kwargs.get('device', "cuda")
-        self.device = torch.device("cuda" if device == "cuda" and torch.cuda.is_available() else "cpu")
+        self.device = torch.device(device if torch.cuda.is_available() else "cpu")
 
         # 优化器参数
         self.weight_decay = self._train_kwargs.get('weight_decay', 0.0001)
@@ -31,9 +31,9 @@ class Supervisor:
         # 数据集的名称，用于输出路径中的命名 runs/PEMS04/train
         self.dataset_name = self._data_kwargs.get('data_file').split('/')[1]
 
-        # 该次运行结果所在的路径，最大为 runs/PEMS04/train100
+        # 该次运行结果所在的路径，最大为 runs/PEMS04/train1000
         self.runs_path = "runs/" + self.dataset_name + "/{}100/".format(self.mode)
-        for i in range(1, 100):
+        for i in range(1, 1000):
             self.runs_path = "runs/" + self.dataset_name + "/{}{}/".format(self.mode, i)
             if not os.path.exists(self.runs_path):
                 os.makedirs(self.runs_path)
@@ -55,7 +55,8 @@ class Supervisor:
         # 每训练 save_epoch，则保存一次模型
         self.save_epoch = self._train_kwargs.get('save_epoch', 5)
         # 保存最好的训练结果
-        self.best_epoch = -1
+        self.best_val_epoch = -1
+        self.best_test_epoch = -1
 
         # data set
         # 数据集参数
@@ -87,7 +88,7 @@ class Supervisor:
             self.load_model()
             self._epoch_num = self._saved_state['epoch']
 
-    def save_model(self, epoch, optimizer_state_dict, is_best=False):
+    def save_model(self, epoch, optimizer_state_dict, is_best=False, mode='val'):
         # 保存模型参数和训练状态
         save_path = self.runs_path + "models/"
         if not os.path.exists(save_path):
@@ -95,10 +96,17 @@ class Supervisor:
 
         # 若保存的是最好的训练结果，则将之前的 best_epoch 删除
         if is_best:
-            save_path += "best_"
-            if self.best_epoch != -1:
-                os.remove(save_path + "epoch{}.pth".format(self.best_epoch))
-            self.best_epoch = epoch
+            save_path += "best_" + mode + "_"
+            # val
+            if mode == 'val':
+                if self.best_val_epoch != -1:
+                    os.remove(save_path + "epoch{}.pth".format(self.best_val_epoch))
+                self.best_val_epoch = epoch
+            # test
+            if mode == 'test':
+                if self.best_test_epoch != -1:
+                    os.remove(save_path + "epoch{}.pth".format(self.best_test_epoch))
+                self.best_test_epoch = epoch
 
         config = dict(self._kwargs)
 
@@ -131,9 +139,9 @@ class Supervisor:
 
     def show_metrics(self, preds, labels, base_message, null_val=0.0):
         for i in range(len(preds)):
-            mae = utils.metrics.masked_mae(preds[i], labels[i], null_val=null_val)
-            rmse = utils.metrics.masked_rmse(preds[i], labels[i], null_val=null_val)
-            mape = utils.metrics.masked_mape(preds[i], labels[i], null_val=null_val)
+            mae = utils.metrics.masked_mae(preds[i].to(self.device), labels[i].to(self.device), null_val=null_val)
+            rmse = utils.metrics.masked_rmse(preds[i].to(self.device), labels[i].to(self.device), null_val=null_val)
+            mape = utils.metrics.masked_mape(preds[i].to(self.device), labels[i].to(self.device), null_val=null_val)
 
             message = base_message + 'horizon{:2}, MAE: {:2.4f}, RMSE: {:2.4f}, MAPE: {:2.4f}'.format(
                 i + 1, mae, rmse, mape
@@ -144,9 +152,9 @@ class Supervisor:
         preds = torch.stack(preds, dim=0)
         labels = torch.stack(labels, dim=0)
 
-        mae = utils.metrics.masked_mae(preds, labels, null_val=null_val)
-        rmse = utils.metrics.masked_rmse(preds, labels, null_val=null_val)
-        mape = utils.metrics.masked_mape(preds, labels, null_val=null_val)
+        mae = utils.metrics.masked_mae(preds.to(self.device), labels.to(self.device), null_val=null_val)
+        rmse = utils.metrics.masked_rmse(preds.to(self.device), labels.to(self.device), null_val=null_val)
+        mape = utils.metrics.masked_mape(preds.to(self.device), labels.to(self.device), null_val=null_val)
 
         message = base_message + ' overall , MAE: {:2.4f}, RMSE: {:2.4f}, MAPE: {:2.4f}'.format(
             mae, rmse, mape
@@ -216,6 +224,7 @@ class Supervisor:
                steps, patience=50, epochs=100, lr_decay_ratio=0.1, log_every=1, save_model=True,
                test_every_n_epochs=1, epsilon=1e-8, **kwargs):
         min_val_loss = float('inf')
+        min_test_loss = float('inf')
         wait = 0
 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=base_lr, weight_decay=self.weight_decay)
@@ -272,13 +281,15 @@ class Supervisor:
                                           "reset the learning rate to {0}. =========="
                                           .format(base_lr))
                     self.cl_len = self.prediction_length
+                    for param_group in optimizer.param_groups:
+                        param_group["lr"] = base_lr * self.batches_seen / self.warm_steps
                 elif self.batches_seen == self.warm_steps:
-                    # init curriculum learning
-                    self.cl_len = 1
                     # 将学习率重置回base_lr
                     for param_group in optimizer.param_groups:
                         param_group["lr"] = base_lr
                     if self.cl:
+                        # init curriculum learning
+                        self.cl_len = 1
                         self._logger.info("========== End Warm up, and start curriculum learning... "
                                           "reset the learning rate to {0}. =========="
                                           .format(base_lr))
@@ -338,6 +349,7 @@ class Supervisor:
                 # 输出评价指标：MAE、RMSE、MAPE
                 # self.show_metrics(val_results['prediction'], val_results['truth'], base_message, 0.0)
 
+            test_loss = float('inf')
             # 每经过test_every_n_epochs（默认1）个epoch，显示一次测试的结果
             if (epoch_num + 1) % test_every_n_epochs == 0:
                 # 测试
@@ -360,7 +372,7 @@ class Supervisor:
             if val_loss < min_val_loss:
                 wait = 0
                 if save_model:
-                    model_file_name = self.save_model(epoch_num, optimizer.state_dict(), is_best=True)
+                    model_file_name = self.save_model(epoch_num, optimizer.state_dict(), is_best=True, mode='val')
                     self._logger.info(
                         'Val loss decrease from {:.4f} to {:.4f}, '
                         'saving to {}'.format(min_val_loss, val_loss, model_file_name))
@@ -371,6 +383,16 @@ class Supervisor:
                 if wait == patience:
                     self._logger.warning('Early stopping at epoch: %d' % epoch_num)
                     break
+
+            # 若验证过程的loss降低了，则保存一下模型（可选）
+            if test_loss < min_test_loss:
+                wait = 0
+                if save_model:
+                    model_file_name = self.save_model(epoch_num, optimizer.state_dict(), is_best=True, mode='test')
+                    self._logger.info(
+                        'Test loss decrease from {:.4f} to {:.4f}, '
+                        'saving to {}'.format(min_test_loss, test_loss, model_file_name))
+                min_test_loss = test_loss
 
             # 每经过 save_epoch，则保存一次模型，epoch_num 从 0 开始
             if (epoch_num + 1) % self.save_epoch == 0:
@@ -385,7 +407,7 @@ class Supervisor:
     def _preprocess_input(self, x, y):
         # 预处理输入数据，包括维度的转换（如果需要）、放入 device
         # 原始格式如下
-        # x (batch_size, history_length(12), num_nodes, input_dim(2))
+        # x (batch_size, history_length(12), num_nodes, input_dim(3))
         # y (batch_size, prediction_length(1), num_nodes, output_dim(1))
 
         x = x.to(self.device)
