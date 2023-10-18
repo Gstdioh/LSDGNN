@@ -59,11 +59,12 @@ def main(args):
         # ============================== 下面构建模型 ============================== #
         model_args = config['model_args']
 
-        _, _, adj_mx = load_graph_data(config['data']['graph_pkl_filename'])
+        if config['data']['graph_pkl_filename'] is not None:
+            _, _, adj_mx = load_graph_data(config['data']['graph_pkl_filename'])
 
-        adj_mx = [transition_matrix(adj_mx), transition_matrix(adj_mx.T)]
+            adj_mx = [transition_matrix(adj_mx), transition_matrix(adj_mx.T)]
 
-        model_args['pre_graph'] = [torch.tensor(i) for i in adj_mx]
+            model_args['pre_graph'] = [torch.tensor(i) for i in adj_mx]
 
         model = LSDGNN(**model_args)
         # ============================== 上面构建模型 ============================== #

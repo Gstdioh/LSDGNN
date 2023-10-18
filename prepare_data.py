@@ -173,7 +173,8 @@ def main(args):
         adj_kwargs = data_config['adj_data']
         traffic_kwargs = data_config['traffic_data']
 
-        prepare_adj_data(**adj_kwargs)
+        if data_config['adj_data']['distance_file'] is not None:
+            prepare_adj_data(**adj_kwargs)
         prepare_traffic_data(**traffic_kwargs)
 
 
